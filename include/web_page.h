@@ -743,7 +743,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    function loadTelegramConfig() {
+    let tgConfigLoadedFromFile = false;
+    let tgSaveTimeout = null;
+
+    async function loadTelegramConfig() {
       const savedToken = localStorage.getItem('cfg_tg_token') || '';
       const savedChatId = localStorage.getItem('cfg_tg_chat_id') || '';
       const savedAuto = localStorage.getItem('cfg_tg_auto');
@@ -751,13 +754,61 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       if (tgChatIdEl) tgChatIdEl.value = savedChatId;
       if (tgAutoSendEl) tgAutoSendEl.checked = (savedAuto === null ? true : savedAuto === 'true');
       updateTgStatusHint();
+
+      try {
+        const res = await fetch('/telegram_config.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+        const fileToken = (cfg.bot_token || '').trim();
+        const fileChatId = (cfg.chat_id || '').trim();
+        const hasFileCreds = Boolean(fileToken || fileChatId);
+
+        if (hasFileCreds) {
+          if (tgBotTokenEl) tgBotTokenEl.value = fileToken;
+          if (tgChatIdEl) tgChatIdEl.value = fileChatId;
+          if (tgAutoSendEl && typeof cfg.auto_send === 'boolean') {
+            tgAutoSendEl.checked = cfg.auto_send;
+          }
+          localStorage.setItem('cfg_tg_token', fileToken);
+          localStorage.setItem('cfg_tg_chat_id', fileChatId);
+          localStorage.setItem('cfg_tg_auto', String(tgAutoSendEl ? tgAutoSendEl.checked : true));
+          tgConfigLoadedFromFile = true;
+        }
+        updateTgStatusHint();
+      } catch (e) {
+        // Fallback giữ nguyên localStorage nếu không có file cấu hình
+      }
     }
 
     function saveTelegramConfig() {
-      if (tgBotTokenEl) localStorage.setItem('cfg_tg_token', tgBotTokenEl.value.trim());
-      if (tgChatIdEl) localStorage.setItem('cfg_tg_chat_id', tgChatIdEl.value.trim());
-      if (tgAutoSendEl) localStorage.setItem('cfg_tg_auto', String(tgAutoSendEl.checked));
+      const token = tgBotTokenEl ? tgBotTokenEl.value.trim() : '';
+      const chatId = tgChatIdEl ? tgChatIdEl.value.trim() : '';
+      const autoSend = tgAutoSendEl ? tgAutoSendEl.checked : true;
+
+      localStorage.setItem('cfg_tg_token', token);
+      localStorage.setItem('cfg_tg_chat_id', chatId);
+      localStorage.setItem('cfg_tg_auto', String(autoSend));
+      tgConfigLoadedFromFile = false;
       updateTgStatusHint();
+
+      clearTimeout(tgSaveTimeout);
+      tgSaveTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch('/telegram_config.json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bot_token: token, chat_id: chatId, auto_send: autoSend })
+          });
+          if (res.ok && tgStatusText && token && chatId) {
+            tgStatusText.textContent = autoSend
+              ? '💾 Đã lưu vào telegram_config.json (Sẵn sàng tự động gửi)'
+              : '💾 Đã lưu vào telegram_config.json (Tự động gửi đang tắt)';
+            tgStatusText.style.color = autoSend ? 'var(--green)' : 'var(--warn)';
+          }
+        } catch (e) {
+          // Bỏ qua nếu server không hỗ trợ ghi file (ESP32 dùng telegram_config.h)
+        }
+      }, 300);
     }
 
     function updateTgStatusHint() {
@@ -765,13 +816,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const token = tgBotTokenEl ? tgBotTokenEl.value.trim() : '';
       const chatId = tgChatIdEl ? tgChatIdEl.value.trim() : '';
       if (!token || !chatId) {
-        tgStatusText.textContent = 'Nhập Bot Token và Chat ID để tự động gửi bằng chứng';
+        tgStatusText.textContent = 'Điền vào telegram_config.json hoặc nhập trực tiếp tại đây';
         tgStatusText.style.color = 'var(--dim)';
       } else if (tgAutoSendEl && tgAutoSendEl.checked) {
-        tgStatusText.textContent = 'Sẵn sàng tự động gửi lên Telegram khi vi phạm';
+        tgStatusText.textContent = tgConfigLoadedFromFile
+          ? '✅ Đã nạp từ telegram_config.json (Sẵn sàng tự động gửi)'
+          : 'Sẵn sàng tự động gửi lên Telegram khi vi phạm';
         tgStatusText.style.color = 'var(--green)';
       } else {
-        tgStatusText.textContent = 'Đã lưu cấu hình (Tự động gửi đang tắt)';
+        tgStatusText.textContent = tgConfigLoadedFromFile
+          ? 'Đã nạp từ telegram_config.json (Tự động gửi đang tắt)'
+          : 'Đã lưu cấu hình (Tự động gửi đang tắt)';
         tgStatusText.style.color = 'var(--warn)';
       }
     }

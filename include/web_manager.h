@@ -39,5 +39,6 @@ private:
   void handleRoot();
   void handlePhoto();
   void handleAudio();
+  void handleTelegramConfig();
 };
 

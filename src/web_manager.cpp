@@ -1,5 +1,6 @@
 #include <web_manager.h>
 #include <web_page.h>
+#include <telegram_config.h>
 #include <camera_manager.h>
 #include <audio_recorder.h>
 
@@ -109,6 +110,17 @@ void WebManager::handleAudio() {
   _server.send(404, "text/plain", "Chua co file ghi am");
 }
 
+void WebManager::handleTelegramConfig() {
+  char jsonBuf[384];
+  snprintf(jsonBuf, sizeof(jsonBuf),
+    "{\"bot_token\":\"%s\",\"chat_id\":\"%s\",\"auto_send\":%s}",
+    TELEGRAM_BOT_TOKEN,
+    TELEGRAM_CHAT_ID,
+    TELEGRAM_AUTO_SEND ? "true" : "false");
+  _server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  _server.send(200, "application/json; charset=utf-8", jsonBuf);
+}
+
 void WebManager::begin() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_STA_SSID, WIFI_STA_PASS);
@@ -144,6 +156,7 @@ void WebManager::begin() {
   _server.on("/", [this]() { this->handleRoot(); });
   _server.on("/photo.jpg", [this]() { this->handlePhoto(); });
   _server.on("/audio.wav", [this]() { this->handleAudio(); });
+  _server.on("/telegram_config.json", [this]() { this->handleTelegramConfig(); });
   _server.begin();
 
   _webSocket.begin();
