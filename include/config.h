@@ -31,7 +31,9 @@
 // - Mic 1 (Lề Trái): chân L/R nối GND  (Left)
 // - Mic 2 (Lề Phải): chân L/R nối 3.3V (Right)
 
-// ===== CẤU HÌNH WI-FI ACCESS POINT =====
+// ===== CẤU HÌNH WI-FI (STATION & DỰ PHÒNG AP) =====
+#define WIFI_STA_SSID         "local_nitro5"
+#define WIFI_STA_PASS         "12345678"
 #define AP_SSID_NAME          "ESP32-Audio-Spectrum"
 #define AP_PASSWORD           "12345678"
 #define MDNS_HOST_NAME        "esp32"

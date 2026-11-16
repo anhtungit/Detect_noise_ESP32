@@ -110,20 +110,34 @@ void WebManager::handleAudio() {
 }
 
 void WebManager::begin() {
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(AP_SSID_NAME, AP_PASSWORD);
-  delay(100);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_STA_SSID, WIFI_STA_PASS);
 
   Serial.println("\n-------------------------------------------------------");
-  Serial.print("[WebManager] Tên Wi-Fi (SSID):  ");
-  Serial.println(AP_SSID_NAME);
-  Serial.print("[WebManager] Mật khẩu Wi-Fi:   ");
-  Serial.println(AP_PASSWORD);
-  Serial.print("[WebManager] Địa chỉ Web AP:   http://");
-  Serial.println(WiFi.softAPIP());
+  Serial.printf("[WebManager] Dang ket noi Wi-Fi: %s ...\n", WIFI_STA_SSID);
+
+  int retries = 0;
+  while (WiFi.status() != WL_CONNECTED && retries < 25) {
+    delay(400);
+    Serial.print(".");
+    retries++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[WebManager] Da ket noi Wi-Fi thanh cong!");
+    Serial.print("[WebManager] Dia chi IP STA:   http://");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\n[WebManager] Khong the ket noi Wi-Fi! Bat che do AP du phong...");
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(AP_SSID_NAME, AP_PASSWORD);
+    delay(100);
+    Serial.print("[WebManager] Dia chi Web AP:   http://");
+    Serial.println(WiFi.softAPIP());
+  }
 
   if (MDNS.begin(MDNS_HOST_NAME)) {
-    Serial.printf("[WebManager] Tên miền mDNS:     http://%s.local\n", MDNS_HOST_NAME);
+    Serial.printf("[WebManager] Ten mDNS:         http://%s.local\n", MDNS_HOST_NAME);
   }
   Serial.println("-------------------------------------------------------");
 
