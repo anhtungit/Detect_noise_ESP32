@@ -1,0 +1,10 @@
+.pio/
+.venv/
+.kombai/
+__pycache__/
+*.pyc
+.vscode/
+.agents/
+output/
+*.swp
+*.bak
